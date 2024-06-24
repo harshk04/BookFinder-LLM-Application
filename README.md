@@ -1,5 +1,10 @@
 # BookFinder-LLM-Application
 
+## Introduction
+
+BookFinder-LLM-Application is a powerful tool that leverages Retrieval-Augmented Generation (RAG) to provide contextual responses based on PDF documents. By utilizing GPT-2 from HuggingFace as the language model and Qdrant as the vector database, this application ensures efficient and accurate semantic search and response generation. The embeddings are generated using the BAAI/bge-large-en model from HuggingFace, allowing for nuanced and context-aware interactions with the ingested documents.
+
+
 ## Features
 
 - **PDF Document Ingestion:** Load and split PDF documents into chunks for semantic search.
