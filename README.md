@@ -15,8 +15,7 @@
 - LangChain
 - Qdrant
 - HuggingFace Transformers
-- Ollama
-- Streamlit Option Menu
+- Streamlit
 
 ## Installation
 
