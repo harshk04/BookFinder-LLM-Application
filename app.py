@@ -1,10 +1,9 @@
 import streamlit as st
 from streamlit_option_menu import option_menu
-from langchain.vectorstores import Qdrant
-from langchain.embeddings import HuggingFaceBgeEmbeddings
+from langchain_qdrant import Qdrant
+from langchain_community.embeddings import HuggingFaceBgeEmbeddings
 from qdrant_client import QdrantClient
-from langchain_huggingface import HuggingFacePipeline
-from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+from gradio_client import Client
 
 # Initialize the embeddings model
 model_name = "BAAI/bge-large-en"
@@ -16,7 +15,7 @@ embeddings = HuggingFaceBgeEmbeddings(
     encode_kwargs=encode_kwargs
 )
 
-# Initialize the Qdrant client
+# Initialize the Qdrant clientss
 url = "http://localhost:6333"
 client = QdrantClient(
     url=url, prefer_grpc=False
@@ -25,13 +24,20 @@ client = QdrantClient(
 # Initialize the Qdrant database
 db = Qdrant(client=client, embeddings=embeddings, collection_name="books")
 
-# Load the Hugging Face model and tokenizer
-model_id = "gpt2"
-model = AutoModelForCausalLM.from_pretrained(model_id)
-tokenizer = AutoTokenizer.from_pretrained(model_id)
+# Function to get responses using the Gradio client
+def get_prompts(prompt):
+    client = Client("harshk04/TextGeneration")
+    result = client.predict(
+        message=f"Using the following context, write about {prompt}:\n{context}",
+        system_message="You are a friendly chatbot",
+        max_tokens=800,
+        temperature=0.7,
+        top_p=0.95
+    )
+    list_prompts = result.split("\n")
+    list_prompts = [prompt[3:] for prompt in list_prompts if prompt and prompt[0].isdigit()]
 
-pipe = pipeline("text-generation", model=model, tokenizer=tokenizer, max_new_tokens=100)
-hf = HuggingFacePipeline(pipeline=pipe)
+    return list_prompts
 
 # Streamlit app
 st.title("BookFinder: Autonomous LLM-based Book Recommendation Agent")
@@ -44,12 +50,10 @@ with st.sidebar:
         icons=["house", "search", "envelope"],
         menu_icon="cast",
         default_index=0,
-
     )
 
     st.sidebar.success("This app demonstrates Retrieval-Augmented Generation (RAG) using the Hugging Face Open Source Model.")
     st.sidebar.warning("Developed by [Harsh Kumawat](https://www.linkedin.com/in/harsh-k04/)")
-
 
 if page == "Home":
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -59,6 +63,7 @@ if page == "Home":
     st.success("Retrieval-Augmented Generation (RAG) using the Hugging Face Open Source Model.")
     st.write("Welcome to the Chat application. Select 'Generate Response' from the menu to get started.")
     st.write("Using cutting-edge AI technology, BookFinder is an independent LLM-based book recommendation agent. By utilizing cutting-edge models like the Open Source Model from Hugging Face and the BGE-Large-EN embeddings from BAAI, BookFinder provides an advanced retrieval-augmented generation (RAG) capacity. Through a conversational chat interface, users may interact with BookFinder and receive tailored book suggestions based on their inquiries. Semantic search and deep learning models are easily integrated by the application to deliver precise and contextually relevant results. BookFinder was created with the user in mind, combining the effectiveness of AI-driven recommendation algorithms with natural user interfaces to improve the book discovery experience.")
+
 elif page == "Generate Response":
     st.subheader("Start Chatting with the Assistant")
 
@@ -86,23 +91,14 @@ elif page == "Generate Response":
                 # Perform a semantic search
                 docs = db.similarity_search_with_score(query=prompt, k=5)
 
-                # Prepare the context for the Hugging Face model
+                # Prepare the context for the Gradio model
                 context = "\n".join([doc.page_content for doc, score in docs])
 
-                # Generate a response using the Hugging Face model
-                response = hf.invoke(f"Using the following context, write about {prompt}:\n{context}")
+                # Generate a response using the Gradio model
+                response_list = get_prompts(f"Using the following context, write about {prompt}:\n{context}")
 
-                # Debug: Print response to understand its structure
-                st.write("Debugging response structure:", response)
-
-                # Extract the generated text from the response
-                if isinstance(response, list) and len(response) > 0:
-                    if 'generated_text' in response[0]:
-                        full_response = response[0]['generated_text']
-                    else:
-                        full_response = str(response[0])  # Convert to string for safety
-                else:
-                    full_response = "Error: Unexpected response format."
+                # Combine the list of instructions into a single response
+                full_response = "\n".join(response_list)
 
                 message_placeholder.markdown(full_response + "▌")
             message_placeholder.markdown(full_response)
